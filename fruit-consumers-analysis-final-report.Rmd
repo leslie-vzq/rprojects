@@ -1,0 +1,903 @@
+---
+title: "Final Project Written Report"
+author: 'Data Miners: Felix Gao, Leslie Vazquez Moreno, Sean Nguyen, Stella Aurelia,
+  Victoria Nguyen'
+date: "6/3/2022"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo = FALSE, include = FALSE}
+library(knitr)
+library(ggplot2)
+library(gridExtra)
+library(tidyverse)
+library(tibble)
+library(skimr)
+library(kableExtra)
+library(agricolae)
+library(compareGroups)
+library(FSA)
+library(psych)
+library(car)
+library(boot)
+```
+
+``` {r data preview, echo = FALSE}
+marketing_campaign <- read.csv2(file = '~/Downloads/marketing_campaign.csv', sep = "\t" )
+
+marketing_campaign <- read.csv2(file = '~/Downloads/marketing_campaign.csv', sep = "\t" )
+kable(marketing_campaign[1:10, 1:8], 
+      caption ="A preview of Customer Personality Analysis Dataset")
+```
+
+# Introduction and Project Description
+
+For our final project, our group conducted research on the characteristics and fruit-purchasing habits of a business's customers with the goal of being able to model the traits of the ideal customer for this business to further market fruit towards.
+
+## Group Members and Roles
+
+* **Stella Aurelia:**
+  + Exploring Levels of Education
+* **Felix Gao:**
+  + Exploring Levels of Income
+  + Creating Logistic Regression Model
+* **Leslie Vazquez Moreno:**
+  + Exploring Age
+* **Sean Nguyen:**
+  + Exploring Marital Status
+* **Victoria Nguyen:** 
+  + Exploring Number of Kids at Home
+  
+## Dataset 
+
+For this project, we decided to use a data set called **"Customer Personality Analysis"** on Kaggle, provided by Dr. Omar Romero-Hernandez of Berkeley Haas School of Business.
+
+The data set itself is an analysis of a company's ideal customers. This allows the understanding of consumer habits and profiles in order to help market products towards groups that are most likely to be customers. 
+
+### Important Variables
+
+There were 29 variables included in the original dataset. By choosing to focus on customers' fruit-buying habits, we were able to pick out the following variables relevant to our research:
+
+```{r Variable description, echo = F}
+variable_descriptions <- tribble(
+  ~Variable_Name, ~Description,
+  "Year_Birth", "Customer's birth year",
+  "Education", "Customer's education level",
+  "Marital_Status", "Customer's marital status",
+  "Income", "Customer's yearly household income",
+  "Kidhome", "Number of children in customer's household",
+  "MntFruits", "Amount spent on fruits in last 2 years")
+variable_descriptions <- variable_descriptions %>% 
+  mutate(across(dplyr::everything(), ~ str_to_title(.)))
+
+kable(variable_descriptions) %>%
+  kable_styling(full_width = F)
+```
+
+* Independent Variables: 
+  + `Year_Birth`
+  + `Education`
+  + `Marital_Status`
+  + `Income`
+  + `KidHome`
+
+* Dependent Variable: 
+  + `MntFruits`
+
+The original dataset can be found [here](https://www.kaggle.com/datasets/imakash3011/customer-personality-analysis).
+
+## Main Research Question
+
+What characteristics makes someone more likely to purchase fruits? 
+
+## Subquestions
+
+  1) Does the level of education have an effect in purchasing more on fruit? 
+  2) What age group purchased the most fruit on average?
+  3) Are married people more likely to spend more on fruits?
+  4) Is there a relationship between income and the amount spent on fruit?
+  5) Does the number of kids one has at home affect how much they spend on fruit?
+
+# Data Exploration and Visualization
+
+### Exploratory Analysis
+```{r, eval = F, echo = F}
+skim(marketing_campaign)
+```
+
+There are 29 variables. 3 are character and 26 are numeric. There are 2240 total responses. Only `Income` has missing values with 24 of them.
+
+There are 2 variables that are constant through out the dataset: `Z_CostContact` and `Z_Revenue`. We can drop these variables from the dataset since they don't provide any information to us.
+
+```{r, echo=F}
+#dropping columns `Z_CostContact` and `Z_Revenue`
+marketing_campaign <- subset (marketing_campaign, select = -c(`Z_CostContact`,`Z_Revenue`))
+```
+
+
+```{r, echo = F}
+p1 <- ggplot(marketing_campaign) +
+  geom_bar(mapping = aes(MntFruits))
+p2 <-ggplot(marketing_campaign) +
+  geom_bar(mapping = aes(MntFishProducts))
+p3 <- ggplot(marketing_campaign) +
+  geom_bar(mapping = aes(MntGoldProds))
+p4 <- ggplot(marketing_campaign) +
+  geom_bar(mapping = aes(MntWines))
+p5 <- ggplot(marketing_campaign) +
+  geom_bar(mapping = aes(MntMeatProducts))
+p6 <- ggplot(marketing_campaign) +
+  geom_bar(mapping = aes(MntSweetProducts))
+grid.arrange(p1, p2, p3, p4, p5, p6,
+             nrow = 2,
+             ncol = 3)
+```
+
+`MntWines`, `MntMeatProducts`, and `MntGoldProds` have a maximum frequency sold of less than 70 and so there is not much to distinguish them from those who consume less. `MntFruits`, `MntFishProducts`, and `MntSweetProducts` have a maximum frequency of about 400 and would be easier to distinguish those who consume a great amount versus those who consume less. These variables also have much less maximum consumption amount from 0 to 200 compared to 0 to 1500.
+
+```{r barplot of Fruits, echo = F}
+ggplot(marketing_campaign) +
+  geom_bar(mapping = aes(MntFruits))
+```
+
+This bar graph shows the amount spent on fruits in the last two years.
+
+```{r, echo = F}
+p7 <- ggplot(marketing_campaign) +
+  geom_bar(mapping = aes(NumStorePurchases))
+p8 <- ggplot(marketing_campaign) +
+  geom_bar(mapping = aes(NumWebPurchases))
+grid.arrange(p7, p8,
+             nrow = 1,
+             ncol = 2)
+```
+
+These bar graphs show the number of purchases made directly in stores and number of purchases made through the company's website. 
+
+```{r plot of education vs fruits, echo = F}
+#education vs. fruits
+ggplot(data = marketing_campaign) +
+  geom_bar(mapping = aes(x = Education, y = MntFruits), 
+           stat = "identity") +
+  ggtitle("Customer's Level of Education vs. Amount Spent on Fruits in last 2 years") + 
+  xlab("Education") + 
+  ylab("Amount Spent on Fruits ($)")
+
+```
+
+This bar graph displays the amount spent on fruits based on customer's level of education. 
+
+
+Upon research, we found that the responses that had `2n Cycle` are actually equivalent to having a master's degree in other parts of the world. So, we manipulated the data to 4 distinctive categories: `High School Diploma`, `Bachelor's Degree`, `Master's Degree` and `Ph.D`. 
+
+```{r data manipulation for education, echo = T}
+# manipulating data into 4 distinctive categories
+
+# marketing_campaign <- marketing_campaign %>%
+#   mutate(Education = recode(Education,
+#   "2n Cycle" = "Master's Degree",
+#   "Basic" = "High School Diploma",
+#   "Master" = "Master's Degree",
+#   "Graduation" = "Bachelor's Degree",
+#   "PhD" = "Ph.D"))
+
+education <- ifelse(marketing_campaign$Education == "2n Cycle", "Master's Degree", 
+                    ifelse(marketing_campaign$Education == "Basic", "High School Diploma",
+                           ifelse(marketing_campaign$Education == "Master", "Master's Degree",
+                                   ifelse(marketing_campaign$Education == "Graduation", "Bachelor's Degree",
+                                          ifelse(marketing_campaign$Education == "PhD", "Ph.D", "error")))))
+marketing_campaign <- marketing_campaign %>%
+  mutate(education)
+```
+
+```{r pie chart education, echo = T, warning=FALSE}
+#creating the pie chart
+t<- table(marketing_campaign$education)
+t
+education1 <- c("Master's Degree","High School Diploma", "Bachelor's Degree", "Ph.D")
+pie_labels <- paste0(education1 , "=", round(100 * t/sum(t), 2), "%")
+pie(t, col = hcl.colors(length(t), "BluYl"), labels = pie_labels, main = "Pie Chart of Customer's Education Level")
+```
+
+This pie chart displays 2240 customers and their education levels based off of the new categories.
+
+```{r boxplot of education vs fruits, echo=TRUE}
+#education vs. fruits box plot
+ggplot(data = marketing_campaign, aes(x = education,y = MntFruits)) + 
+  geom_boxplot() +
+  ylab("Amount Spent on Fruits in Last 2 Years") +
+  xlab("Education Levels") +
+  ggtitle("Amount Spent on Fruits vs. Education Levels") +
+  coord_flip() + 
+  stat_summary(fun = mean, color = "darkred", size = 0.5, shape = "square")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_x_discrete(limits = c("High School Diploma", "Bachelor's Degree", "Master's Degree", "Ph.D"))
+```
+
+```{r calculating averages of education vs fruits, echo=TRUE, include=FALSE}
+#calculating averages of education vs. fruits
+marketing_campaign %>%
+  filter(education == "High School Diploma") %>%
+  summarise(mean(MntFruits))
+
+marketing_campaign %>%
+  filter(education == "Bachelor's Degree") %>%
+  summarise(mean(MntFruits))
+
+marketing_campaign %>%
+  filter(education == "Master's Degree") %>%
+  summarise(mean(MntFruits))
+
+marketing_campaign %>%
+  filter(education == "Ph.D") %>%
+  summarise(mean(MntFruits))
+```
+This is a box plot of the customers' education level and the amount spent on fruits in the last 2 years. The red box represents the mean amount spend on fruits. We found that on average, those with a: `High School Diploma` spent **$11.11**, `Bachelor’s Degree` spent **$30.77**, `Master’s Degree` spent **$24.24**, `Ph.D` spent **$20.04** on fruits in the last two years. Overall on average, customers with a bachelor's degree spent the most on fruits. 
+
+
+```{r plot of marital status vs fruits, echo = F}
+ggplot(data = marketing_campaign) +
+  geom_bar(mapping = aes(x = Marital_Status, y = MntFruits), 
+           stat = "identity") +
+  ggtitle("Customer's Marital Status vs. Amount Spent on Fruits in last 2 years") + 
+  xlab("Marital") + 
+  ylab("Amount Spent on Fruits ($)")
+
+```
+
+This bar graph displays the amount spent on fruits based on customer's marital status. 
+
+```{r kids, echo = F}
+#kids at home vs. fruits
+ggplot(data = marketing_campaign) +
+  geom_bar(mapping = aes(x = Kidhome, y = MntFruits), 
+           stat = "identity") +
+  ggtitle("Customer's Number of Kids vs. Amount Spent on Fruits in last 2 years") + 
+  xlab("Kids") + 
+  ylab("Amount Spent on Fruits ($)")
+```
+
+This bar graph displays the amount spent on fruits based on customer's marital number of kids at home. 
+
+# Data Analysis, Modeling, and Predictions
+
+## Does the Level of Education have an Effect on Purchasing More Fruits?
+
+Initially, we wanted to use ANOVA to answer this sub question. However the residuals violated the assumptions and through multiple attempts of transformation we thought it was best to use a non-parametric test as the last resort. We use chi-square test to see if there is a relationship between `Education` and `MntFruits`. We use kruskal-wallis test to see if there is a difference in the distribution of the populations of `Education`.
+
+##### The hypotheses for Chi-Square Test:
+
+$H_0$: The two variables are independent.
+
+$H_a$: The two variables relate to each other.
+
+##### The hypotheses for Kruskal-Wallis Test:
+
+$H_0$: There is no difference in the distribution of the populations
+
+$H_a$: There is a difference in the distribution of the populations
+
+```{r data analysis for education, echo = TRUE, warning=FALSE}
+# consolidated Education & MntFruits to have its own variable
+education <- marketing_campaign$education
+MntFruits <- marketing_campaign$MntFruits
+
+# performed a chi-square test
+chisq.test(MntFruits, education, correct = FALSE) 
+
+# performed a kruskal wallis test
+kruskal.test(MntFruits ~ education, data = marketing_campaign)
+```
+
+Since the p-value from both tests are less than alpha = 0.05, we reject the null hypothesis since it is statistically significant. It appears that there is a relationship between `Education` and `MntFruits`. There is also a significant difference between education levels. 
+
+### Conclusion
+
+Yes, the level of education has an effect in purchasing more fruits.
+
+We predict `Education` will have some effect on `MntFruits` if it is a statistically significant predictor.
+
+## What Age Group Purchases the Most Fruit?
+
+```{r plot of age vs fruits, echo = FALSE}
+marketing_campaign <- marketing_campaign %>%
+  mutate(Age = 2022 - Year_Birth)
+summary(marketing_campaign$Age)
+```
+
+`Age` is a new variable added to `marketing_campaign` using `Year_Birth` since age is easier to interpret as a visual. `Age` ranges from 26 to 129 years old with the median being 52.
+
+Frequency of `Age` Values:
+```{r, echo = FALSE}
+Age_count <- marketing_campaign %>%
+  mutate(Age_tens = trunc(Age/10)) %>%
+  group_by(Age_tens) %>%
+  summarize(count = n())
+Age_groups <- c(20, 30, 40, 50, 60, 70, 80, 120)
+Age_count <- add_column(Age_count, Age_groups)
+Age_count <- Age_count %>%
+  select(Age_groups, count)
+Age_count
+```  
+
+Below 30 and above 80 are removed from the 5 age groups histogram since the sample sizes are much smaller compared to the other age groups. Since sample sizes are unequal per age group, the mean is taken as a measure for the age groups.
+```{r, include = FALSE}
+# average spent on fruit for 5 age groups
+# without outliers
+indices_30 <- which(marketing_campaign$Age >= 30 & marketing_campaign$Age <= 39)
+indices_40 <- which(marketing_campaign$Age >= 40 & marketing_campaign$Age <= 49)
+indices_50 <- which(marketing_campaign$Age >= 50 & marketing_campaign$Age <= 59)
+indices_60 <- which(marketing_campaign$Age >= 60 & marketing_campaign$Age <= 69)
+indices_70 <- which(marketing_campaign$Age >= 70 & marketing_campaign$Age <= 79)
+avg_30 <- mean(marketing_campaign$MntFruits[indices_30])
+avg_40 <- mean(marketing_campaign$MntFruits[indices_40])
+avg_50 <- mean(marketing_campaign$MntFruits[indices_50])
+avg_60 <- mean(marketing_campaign$MntFruits[indices_60])
+avg_70 <- mean(marketing_campaign$MntFruits[indices_70])
+avg_Mnt_Fruit <- c(avg_30, avg_40, avg_50, avg_60, avg_70)
+age_group <- c("30 to 39", "40 to 49", "50 to 59", "60 to 69",
+               "70 to 79")
+age_vs_fruit <- data.frame(age_group, avg_Mnt_Fruit)
+```
+
+```{r, echo = FALSE}
+ggplot(age_vs_fruit) +
+  geom_histogram(mapping = aes(x = age_group,
+                               y = avg_Mnt_Fruit),
+                 fill = c("light green", "yellowgreen", "gold", "orange", "orangered"),
+                 stat = "identity") +
+   ggtitle("Customer's Age vs. Average Amount Spent on Fruits in Last 2 Years") + 
+  xlab("Age Groups") + 
+  ylab("Average Amount Spent on Fruits ($)") +
+  geom_text(mapping = aes(x = age_group,
+                          y = avg_Mnt_Fruit,
+                          label = format(round((avg_Mnt_Fruit), 2), nsmall = 2)),
+            vjust = -1) +
+  coord_cartesian(ylim = c(0, 32))+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+### Conclusion 1
+
+The age group by 10's from 30 to 79 who purchased the most fruit on average the last 2 years was between 70 to 79. There is also a slight upward trend from 40's to 70's.
+
+```{r}
+# average spent on fruit for 2 age groups
+# without outliers
+marketing_campaign <- marketing_campaign %>%
+  mutate(Age = 2022 - Year_Birth)
+indices_middle <- which(marketing_campaign$Age <= 54)
+indices_older <- which(marketing_campaign$Age >= 55)
+avg_middle <- mean(marketing_campaign$MntFruits[indices_middle])
+avg_older <- mean(marketing_campaign$MntFruits[indices_older])
+avg_Mnt_Fruit <- c(avg_middle, avg_older)
+age_group <- c("Middle Age (26 to 54)", 
+               "Older Age (55 to 129)")
+age_vs_fruit <- data.frame(age_group, avg_Mnt_Fruit)
+```
+
+```{r}
+ggplot(age_vs_fruit) +
+  geom_histogram(mapping = aes(x = age_group,
+                               y = avg_Mnt_Fruit),
+                 fill = c("gold", "orange"),
+                 stat = "identity") +
+   ggtitle("Customer's Age vs. Average Amount Spent on Fruits in last 2 years") + 
+  xlab("Age Groups") + 
+  ylab("Average Amount Spent on Fruits ($)") +
+  geom_text(mapping = aes(x = age_group,
+                          y = avg_Mnt_Fruit,
+                          label = format(round((avg_Mnt_Fruit), 2), nsmall = 2)),
+            vjust = -1) +
+  coord_cartesian(ylim = c(0, 32))
+```
+
+A second histogram with only 2 age groups are used to test the consistency of our results from the first histogram since each age group will receive greater sample size, representing the data better. The outliers excluded from the first histogram are included in this histogram since the problem of an age group with largely different sample sizes from the other age groups is not a problem for only 2 age groups.
+
+### Conclusion 2:
+
+The age group, between `Middle Age` and `Older Age`, who purchased the most fruit on average the last 2 years was `Older Age`. There is only about a $3 difference between the 2 age groups.
+
+```{r}
+# choosing number of clusters
+age_fruit <- data.frame(Age = marketing_campaign$Age,
+                        MntFruits = marketing_campaign$MntFruits)
+age_fruit.scaled <- scale(age_fruit)
+age_fruit.scaled <- data.frame(age_fruit.scaled)
+centers15 <- rep(0, 15)
+for(i in 1:15){
+  centers15[i] <- kmeans(age_fruit.scaled, i, nstart = 20)$tot.withinss
+}
+xcenters <- 1:15
+centers15table <- data.frame(xcenters, centers15)
+ggplot(centers15table) +
+  geom_point(mapping = aes(xcenters, centers15)) +
+  xlab("Number of Center") +
+  ylab("Total Within-Cluster Sum of Squares") +
+  ggtitle("Total Within-Cluster Sum of Squares vs. Number of Centers")
+```
+
+A clustering method is used to see if there are subsets between `Age` and `MntFruits` since the first histogram showed a high average for 30's and then a drop in 40's until steadily increasing to the maximum at 70's. Using the elbow method, it is found that 3 clusters are optimal for the clustering model.
+
+```{r}
+# 3 clusters
+km3 <- kmeans(age_fruit, 3, nstart = 20)
+km_age_fruit <- add_column(age_fruit,
+                       km.cluster = as.factor(km3$cluster))
+ggplot(data = km_age_fruit, mapping = aes(x = Age, y = MntFruits)) +
+  geom_point(aes(color = km.cluster), size = 3) +
+  ggtitle("Age vs MntFruit Marketing Campaign data: K-Means Clustering, K = 3")
+```
+
+### Conclusion 3:
+
+Using kmeans clustering, we see that the clusters are not useful for grouping `Age` since the different levels of `MntFruits` is distributed equally among all ages. Although from the clustering, we do see that the low `MntFruits` cluster is much more concentrated for `Age` as well as it makes the 3 outliers for the 120's age clear to remove for the main model.
+
+We predict `Age` will have little effect on `MntFruits` if it is a statistically significant predictor.
+
+
+## Is There a Relationship Between Income and Amount Spent on Fruits?
+
+Variable "income" had 24 missing values and 1 extreme outlier. 
+
+```{r, echo=F, warning=F}
+summary(marketing_campaign$Income)
+```
+
+
+We removed those rows using the dplyr function "filter". Extreme outlier removed for a better scatterplot and correlation. Missing values dealt with for logistic regression.
+```{r, echo=F, warning=F}
+marketing_campaign2 <- filter(marketing_campaign, Income != 666666)
+
+ggplot(data = marketing_campaign2) +
+  geom_point(mapping = aes(x = Income, y = MntFruits)) +
+  geom_smooth(mapping = aes(x = Income, y = MntFruits), se = F) +
+  ggtitle("Scatterplot of Income vs Amount Spent on Fruit") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+We can see that there is a slight linear relationship between income and the amount spent on fruits in the scatterplot. There are a couple outliers that makes the line curve down.
+
+```{r}
+cor(marketing_campaign2$Income, marketing_campaign2$MntFruits)
+```
+
+The correlation between income and amount spent on fruits is 0.5079589. 
+
+### Conclusion(s)
+Income and the amount spent on fruits is moderately correlated.
+
+## Does the Number of Kids at Home Affect the Amount Spent on Fruits?
+
+```{r plot of kids vs fruits, echo = F}
+#kids at home vs. fruits
+
+avg_spent_kids <- marketing_campaign %>%
+  group_by(Kidhome) %>%
+  summarise(Mean = mean(MntFruits)) 
+ggplot(avg_spent_kids) +
+  geom_bar(aes(x = Kidhome, y = Mean, fill = Kidhome, show.legend=FALSE), stat = "identity") +
+  ylim(0, 50) +
+  geom_text(aes(x = Kidhome, y = Mean, label = round(Mean, digits = 2), show.legend=FALSE), vjust = -2)+
+  xlab("Number of Kids at Home")+
+  ylab("Average Amount of Money Spent on Fruit Over 2 Years")+
+  guides(Kidhome = FALSE)+
+  ggtitle("Mean Spent on Fruits by Number of Kids at Home")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+```{r chi sq for kids, echo = FALSE}
+chisq.test(marketing_campaign$MntFruits, marketing_campaign$Kidhome, correct = FALSE) 
+```
+
+
+### Conclusion
+
+As we can see in the above graph, customers with no kids spend around 5 times as much on fruit than customers who do have children. Those with only 1 child spend slightly more than those with 2. 
+
+The following Chi-Square test confirms that the amount of money spent on fruits has a dependent relationship with the number of kids one has in their household, and we know that this relationship is negative from the graph.
+
+## Do married people, on average, spend more on fruits than other marital statuses?
+
+
+First thing I wanted to do was to remove all missing values under the Marital_Status dataset
+```{r}
+
+marketing_campaign <- read.csv2(file = '~/Downloads/marketing_campaign.csv', sep = "\t" )
+kable(marketing_campaign[1:10, 1:8], 
+      caption ="A preview of Customer Personality Analysis Dataset")
+
+marketing_campaign %>% filter(!is.na(Marital_Status)) %>%
+  count(Marital_Status)
+
+marketing_campaign.new <- marketing_campaign %>% 
+  filter(Marital_Status != "Absurd", Marital_Status != "YOLO") %>%
+  mutate(Marital_Status = replace(Marital_Status, Marital_Status == "Alone", "Single"))
+```
+
+First thing I do is find the average amount spent on fruits from the total. Once I get average, I used that as the minimun and create graphs to see the proportion of each group that spent more than the average amount. During this, I noticed there was a marital status that did not make sense so I removed it and regraphed the proportions again.
+```{r}
+summary(marketing_campaign.new$MntFruits)
+
+above.avg <- marketing_campaign %>%
+  filter( MntFruits > 26.27) %>%
+  group_by(Marital_Status, MntFruits) %>%
+  count(Marital_Status)
+
+above.abg.spenders <- above.avg %>%
+  group_by(Marital_Status) %>%
+  count(Marital_Status)
+
+total <- marketing_campaign.new %>%
+  group_by(Marital_Status) %>%
+  count(Marital_Status)
+
+rates <- left_join(above.abg.spenders, total, by = "Marital_Status") %>%
+  mutate(rates = n.x / n.y)
+
+ggplot(rates, aes(x = Marital_Status, y = rates, fill = Marital_Status)) +
+  geom_bar(stat = "identity") + 
+  ggtitle("Proportion of Marital Status Spending \n more than the Average") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+  geom_text(aes(label = round(rates, 4)), vjust = -1) +
+  ylim(0, .4) +
+  xlab("Marital Status") +
+  ylab("Proportion")
+
+above.avg <- marketing_campaign.new %>%
+  filter( MntFruits > 26.27) %>%
+  group_by(Marital_Status, MntFruits) %>%
+  count(Marital_Status)
+
+above.abg.spenders <- above.avg %>%
+  group_by(Marital_Status) %>%
+  count(Marital_Status)
+
+total <- marketing_campaign.new %>%
+  group_by(Marital_Status) %>%
+  count(Marital_Status)
+
+rates <- left_join(above.abg.spenders, total, by = "Marital_Status") %>%
+  mutate(rates = n.x / n.y)
+
+ggplot(rates, aes(x = Marital_Status, y = rates, fill = Marital_Status)) +
+  geom_bar(stat = "identity") + 
+  ggtitle("Proportion of Marital Status Spending \n more than the Average") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+  geom_text(aes(label = round(rates, 4)), vjust = -1) +
+  ylim(0, .3) +
+  xlab("Marital Status") +
+  ylab("Proportion")
+```
+From the graph, married people had a smaller proportion of people spending above average on fruits. 
+
+From seeing this, I wanted to test the means of each groups.
+
+```{r}
+avr_spent_per_status <- marketing_campaign %>%
+  group_by(Marital_Status) %>%
+  summarise(Mean = mean(MntFruits)) 
+
+ggplot(avr_spent_per_status) +
+  geom_bar(aes(x = Marital_Status,
+               y = Mean, fill = Marital_Status), 
+           stat = "identity") +
+  ylim(0, 100) +
+  geom_text(aes(x = Marital_Status, 
+                y = Mean, label = round(Mean, digits = 3)), 
+            vjust = -2)
+```
+
+From this graph, there are 3 groups that did not make sense nor did it contribute to the study. So I removed two of the groups, Absurd and Yolo, and combined the Alone group into singles.
+
+```{r}
+
+marketing_campaign.new <- marketing_campaign %>% 
+  filter(Marital_Status != "Absurd", Marital_Status != "YOLO") %>%
+  mutate(Marital_Status = replace(Marital_Status, Marital_Status == "Alone", "Single"))
+
+new.avg.spent <- marketing_campaign.new %>%
+  group_by(Marital_Status) %>%
+  summarise(Mean = mean(MntFruits))
+```
+After I manipulated the data, I graphed it again.
+
+```{r}
+ggplot(new.avg.spent) +
+  geom_bar(aes(x = Marital_Status, y = Mean, fill = Marital_Status), 
+           stat = "identity") +
+  ylim(0, 100) +
+  geom_text(aes(x = Marital_Status, y = Mean, label = round(Mean, digits = 3)),
+            vjust = -2) +
+  ggtitle("Average Amount Spent of Fruits \n per Marital Status") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("Marital Status") +
+  ylab("Average Spent on Fruits")
+```
+
+I was interested in seeing the density of each group so I decided to plot the density.
+
+```{r}
+ggplot(marketing_campaign.new, aes(x = MntFruits, y = ..density.., fill = Marital_Status)) +
+  geom_density(alpha = .4) +
+  facet_wrap(vars(Marital_Status))
+```
+
+From this, I see that the average amount of married people were around the same for the other groups. I also noticed that the widowed group had a higher mean than the other groups.
+
+I was also interested in seeing the density of each group so I decided to plot the density.
+
+```{r}
+ggplot(marketing_campaign.new, aes(x = MntFruits, y = ..density.., fill = Marital_Status)) +
+  geom_density(alpha = .4) +
+  facet_wrap(vars(Marital_Status))
+```
+From this graph, I see that the density for eadch group share a similar density to each other. Because of this, I wanted to test to see if there was a difference in means between the five groups so I decided to use the anova test.
+I set my hypothesis test
+
+$H_0$: $\mu_married$ = $\mu_widowed$ = $\mu_together$ = $\mu_single$ = $\mu_divorced$
+
+$H_a$: At least one $\mu$ is different. 
+```{r}
+describeBy(marketing_campaign.new$MntFruits, group = marketing_campaign.new$Marital_Status, type = 2)
+
+rates
+
+marketing_campaign.new$Marital_Status <- as.factor(marketing_campaign.new$Marital_Status)
+
+
+aov.model <- aov(MntFruits ~ Marital_Status, marketing_campaign.new)
+summary(aov.model)
+
+fit <- fitted(aov.model)
+res <- resid(aov.model)
+
+plot(fit, res, xlab = "Fitted", ylab = "Res", main = "Constant Variance Plot")
+
+qqnorm(res)
+qqline(res)
+```
+After I get my p-value from ANOVA, I checked the assumptions before I make a decision on whether or not to reject or fail to reject $H_0$. For plot for constant variance, I was able to satisfy the constant variance assumptions. However, when testing for normality, I noticed a plot that strayed far from the line in my qq plot so normality was not satisfied.
+
+Because normality was not satisfied, I decided to conduct another test, Kruskal-Wallis Test.
+For the hypothesis, I set it up as 
+
+$H_0$: The median, mean on ranks, are all equal
+$H-a$: The median, mean on ranks, for at least one ditribution is different.
+
+```{r}
+kt.mc <- kruskal.test(MntFruits ~ Marital_Status, marketing_campaign.new)
+
+kt.mc
+```
+
+After I get the p-value, I fail to reject $H_0$. For some extra confirmation, I conducted a post hoc test, using the Dunn Test to see the comparison between two groups. I applied the sidak method to control the type 1 error.
+
+```{r}
+DT_none <- dunnTest(MntFruits ~ Marital_Status,
+              marketing_campaign.new,
+              method = "none")
+DT_bon <- dunnTest(MntFruits ~ Marital_Status,
+              marketing_campaign.new,
+              method = "bonferroni")
+
+DT_holm <- dunnTest(MntFruits ~ Marital_Status,
+              marketing_campaign.new,
+              method = "holm")
+
+DT_hochberg <- dunnTest(MntFruits ~ Marital_Status,
+              marketing_campaign.new,
+              method = "hs")
+
+DT_BH <- dunnTest(MntFruits ~ Marital_Status,
+              marketing_campaign.new,
+              method = "bh")
+
+DT_BY <- dunnTest(MntFruits ~ Marital_Status,
+              marketing_campaign.new,
+              method = "by")
+
+DT_fdr <- dunnTest(MntFruits ~ Marital_Status,
+              marketing_campaign.new,
+              method = "sidak")
+
+DT_BH
+DT_bon
+```
+Both the unadjusted p-value and adjusted p-value from sidak shows there are no difference between the distributions of two groups. This aligns with the kruskal-wallis test that we performed above and confirms that we fail to reject the $H_0$
+
+### Conclusion
+
+From the graphs and test that I conducted I can conclude that married people, on average do not spend more than other groups of different marital status.
+
+From the kruskal wallis test, I can also conclude that the distribution between the marital status group are identical. 
+
+## Main Research Question: What characteristics make someone more likely to purchase fruits?
+
+### Logistic Regression Model Assumptions:
+1. Dependent variable must be binary
+2. Independent observations
+3. Independent variables should not be too highly correlated with each other (multicollinearity)
+4. No extreme outlier
+5. Linear relationship of independent variables and the logit of the dependent variable
+6. Sufficiently large sample size
+
+### Data Manipulation:
+```{r}
+marketing_campaign$BinaryMntFruits <- ifelse(marketing_campaign$MntFruits >= 8, 1, 0)
+
+# marketing_campaign <- marketing_campaign %>%
+#   mutate(Education = recode(Education,
+#                             "2n Cycle" = "Master's Degree",
+#                             "Basic" = "High School Diplima",
+#                             "Master" = "Master's Degree",
+#                             "Graduation" = "Bachelor's Degree",
+#                             "PhD" = "Ph.D"))
+
+education <- ifelse(marketing_campaign$Education == "2n Cycle", "Master's Degree", 
+                    ifelse(marketing_campaign$Education == "Basic", "High School Diploma",
+                           ifelse(marketing_campaign$Education == "Master", "Master's Degree",
+                                   ifelse(marketing_campaign$Education == "Graduation", "Bachelor's Degree",
+                                          ifelse(marketing_campaign$Education == "PhD", "Ph.D", "error")))))
+marketing_campaign <- marketing_campaign %>%
+  mutate(education)
+
+marketing_campaign <- marketing_campaign %>%
+  mutate(Age = 2022 - Year_Birth)
+
+marketing_campaign <- marketing_campaign %>%
+  filter(Marital_Status != "Absurd",
+         Marital_Status != "YOLO",
+         Age < 90,
+         Income != 666666)
+
+marketing_campaign <- marketing_campaign %>%
+  mutate(Marital_Status = ifelse(Marital_Status == "Alone", "Single", Marital_Status))
+
+marketing_campaign$BinaryMntFruits <- as.factor(marketing_campaign$BinaryMntFruits)
+marketing_campaign$education <- as.factor(marketing_campaign$education)
+marketing_campaign$Kidhome <- as.factor(marketing_campaign$Kidhome)
+```
+The dependent variable, amount of fruits purchased is now binary. Extreme outliers are removed. 
+```{r}
+nrow(marketing_campaign)
+```
+The sample size is sufficiently large. There are 2208 observations.
+
+### Full Model
+```{r}
+full_model <- glm(formula = BinaryMntFruits ~ Age + education + Marital_Status + Income + Kidhome,
+    family = binomial(link = "logit"), data = marketing_campaign)
+summary(full_model)
+```
+```{r}
+# check for independence assumption
+# Durbin Watson Test
+durbinWatsonTest(full_model)
+```
+$H_o$: residuals are independent
+
+$H_a$: residuals are not independent
+
+Since the p-value is above 0.468, the independence assumption is satisfied.
+
+```{r}
+# check for no multicollinearity assumption
+# variance inflation factor
+vif(full_model)
+```
+All are under 5, so multicollinearity assumption is satisfied.
+
+### Backwards Model Selection
+```{r}
+library(MASS)
+backward_model <- stepAIC(full_model, direction = "backward", trace = FALSE)
+```
+
+```{r}
+# check for independence assumption
+# Durbin Watson Test
+durbinWatsonTest(backward_model)
+```
+$H_o$: residuals are independent
+
+$H_a$: residuals are not independent
+
+Since the p-value is above 0.544, the independence assumption is satisfied.
+
+```{r}
+# check for no multicollinearity assumption
+# variance inflation factor
+vif(backward_model)
+```
+All are under 5, so multicollinearity assumption is satisfied.
+
+### Reduced Model
+```{r}
+summary(backward_model)
+```
+Educations Master's is the only nonsignificant variable in the model for predicting amount of fruit purchased.
+
+Estimates Interpretation:
+
+* For every one year increase in age, the log odds of above median fruit spending decreased by 0.01533 with education, income, and kids at home held constant.
+* Having a high school diploma versus bachelor's increased log odds of above median fruit spending by 1.549 with age, income, and kid at home held constant.
+```{r}
+# log odds to odds
+exp(backward_model$coefficients)
+```
+* For every one year increase in age, the odds of above median fruit spending are 0.9849 fold with education level, income, and kids at home held constant.
+* The odds of above median fruit spending with a high school diploma are 4.7 times the odds of above the median fruit spending with a bachelor's degree with with age, income, and kids at home held constant.
+
+### Pairwise Comparison
+```{r}
+library(emmeans)
+contrast(emmeans(backward_model, "education"), "pairwise", adjust = "Tukey")
+```
+Interpretation: A bachelor's degree versus high school diploma decreased the log odds of above median fruit spending by 1.549.
+
+For education, there is a significant difference between all the categorical variables, levels of education except for bachelor's degree and master's degre at the 95% confidence level. The 0.8859 p-value suggests that bachelor's degree and master's degree are not statistically different from each other.
+```{r}
+contrast(emmeans(backward_model, "Kidhome"), "pairwise", adjust = "Tukey")
+```
+Interpretation: 0 kid at home vs 1 kids at home increased the log odds of above median fruit spending by 1.09.
+
+For kids at home, there is a significant difference between all the categorical variables, levels of education except marginally significantly different for 1 and 2 kids at home at the 95% confidence level.
+
+### Cross Validation Approach
+```{r}
+# cross validation approach MSE 
+cv.glm(marketing_campaign, backward_model, K = 10)$delta[1]
+
+# weighted cross validation misclassification error rate
+cost <- function(r, pi = 0) mean(abs(r-pi) > 0.5)
+cv.glm(marketing_campaign, backward_model, cost=cost, K = 10)$delta[1]
+```
+* The 10-fold CV test MSE is about 0.159 which is fairly close to 0 which means less error in observed vs predicted values based on the predictors.
+* The weighted cross validation misclassification error rate is 0.23, fairly close to 0. So there is about 77% accuracy in prediction.
+
+### Confusion Matrix
+```{r}
+logit.fit.prob <- predict(backward_model, type = "response")
+# Bayes rule
+logit.fit.class <- ifelse(logit.fit.prob > 0.5, 1, 0) %>% as.factor()
+
+confusion.matrix <- table(marketing_campaign$BinaryMntFruits, logit.fit.class)
+confusion.matrix
+```
+* 1696 of the 2208 were correctly identified from the model as predicted of being above the median purchase of fruit when actually or predicted of being below the median purchase of fruit when actually.
+* 512 of the 2208 were incorrectly predicted from the model.
+
+The model is correctly predicted the identification of above or below the median purchase of fruits about 4 times as much than incorrectly identifying. This model correctly predicts about 80% of the total sample.
+
+```{r}
+# ROC curve
+# library(plotROC)
+
+# logit.fit.prob <- predict(backward_model, type = "response")
+# roc.df <- tibble(observed = marketing_campaign$BinaryMntFruits,
+#                  predicted = logit.fit.prob)
+# 
+# ggplot(data = roc.df, mapping = aes(d = observed, m = predicted)) +
+#   geom_roc(labels=F)
+```
+
+# Conclusions and Discussion
+From the data analysis performed, the factors we should consider when deciding who is more likely to purchase fruits:
+
+* their age
+* their education level
+* their income level
+* the number of kids they have at home
+
+# References
+
+* https://www.kaggle.com/datasets/imakash3011/customer-personality-analysis
