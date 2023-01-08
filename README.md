@@ -26,5 +26,6 @@ The two projects are:
     * predictors - average number of beds in hospital, average number of facilities in each hospital, whether the hospital is part of a medical school
   * exploratory analysis
   * assumptions
+  * anova
   * interpretation of final model and reasoning for steps
   * written model equation
