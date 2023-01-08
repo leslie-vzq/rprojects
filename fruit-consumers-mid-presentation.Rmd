@@ -1,0 +1,337 @@
+---
+title: "Common Traits in Fruit Consumers"
+author: 'Data Miners: Felix Gao, Leslie Vazquez Moreno, Sean Nguyen, Stella Aurelia,
+  Victoria Nguyen'
+date: "5/4/2022"
+output:
+  ioslides_presentation: default
+  slidy_presentation: default
+widescreen: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE)
+```
+
+```{r, include=FALSE}
+library(knitr)
+library(ggplot2)
+library(gridExtra)
+library(tidyverse)
+library(tibble)
+#install.packages("skimr")
+library(skimr)
+library(kableExtra)
+
+marketing_campaign <- read.csv2(file = '~/Downloads/marketing_campaign.csv', sep = "\t" )
+# marketing_campaign <- read.csv2(file.choose(), sep = "\t" )
+```
+
+## Roles Assigned to Each Member
+* Felix Gao:
+Do all levels of income spend the same amount on fruits on average?
+* Leslie Vazquez Moreno: 
+What age purchases the most fruit on average?
+* Sean Nguyen:
+Are married people more likely to spend more on fruits?
+* Stella Aurelia:
+Does the level of education have a linear relationship with purchasing fruit? 
+* Victoria Nguyen: 
+How probable is it that someone with kids at home would buy fruit?
+
+## Agenda 
+* Project Objectives
+* Introducing the Data
+* Exploratory Data Analysis
+  * Main Research Question
+  * Sub Research Questions
+* Next Steps
+
+## Project Objectives
+* Project background and motivation: 
+  * This is an analysis of a company's ideal customers designed to help businesses better understand its customers and cater their products to the customer's needs, behaviors and concerns. 
+  * We decided to look specifically at the characteristics of customers who spend on fruits.
+  
+## Introducing the Data Set
+```{r, echo=F}
+#shows mean, sd, missing values, and quantiles for all numeric variables
+#shows missing values, and number of unique categories for all character variables
+skim(marketing_campaign)
+
+#count(marketing_campaign, Education)
+#summary(marketing_campaign$Year_Birth)
+#count(marketing_campaign2, Marital_Status)
+#summary(marketing_campaign$Income)
+#count(marketing_campaign, Kidhome)
+
+#summary(marketing_campaign)
+```
+
+## Introducing the Data Set
+
+There are 29 variables and 2240 responses. 
+
+3 of the variables are character and 26 are numeric. 
+
+We will only be looking at the variables `Year_Birth`, `Education`, `Marital_Status`, `Income`, `KidHome` and `MntFruits`.
+
+Only variable `Income` has missing values with 24 of them.
+
+## Introducing the Data
+  * Relevant variables + What they mean
+  * Customer personality data set.
+  * The variables most relevant to our questions are `Year_Birth`, `Education`, `Marital_Status`, `Income`, `KidHome` and `MntFruits`.
+* Data Description:
+```{r Variable description, echo = F}
+variable_descriptions <- tribble(
+  ~Variable_Name, ~Description,
+  "Year_Birth", "Customer's birth year",
+  "Education", "Customer's education level",
+  "Marital_Status", "Customer's marital status",
+  "Income", "Customer's yearly household income",
+  "Kidhome", "Number of children in customer's household",
+  "MntFruits", "Amount spent on fruits in last 2 years")
+variable_descriptions <- variable_descriptions %>% 
+  mutate(across(dplyr::everything(), ~ str_to_title(.)))
+
+kable(variable_descriptions) %>%
+  kable_styling(full_width = F)
+```
+
+
+## Research Questions
+
+* Main Research Question: What characteristics makes someone more likely to consume fruit? 
+  * Sub Research Questions:
+    + Does the level of education have an effect in purchasing more fruits? 
+    + What age purchases the most fruit on average?
+    + Are married people more likely to spend more on fruits?
+    + Do all levels of income spend the same amount on fruits on average?
+    + How probable is it that someone with kids at home would buy fruit?
+
+## The Response Variable of Interest
+
+Shows the counts of how much people have spent at certain price points.
+
+```{r barplot of Fruits, echo = F}
+ggplot(marketing_campaign) +
+  geom_bar(mapping = aes(MntFruits))
+```
+
+## Sub Research Questions:
+* Does the level of education have an effect in purchasing more fruits? 
+
+  * `Education` has 5 categories: 2n Cycle, Basic, Graduation, Master, PhD
+
+```{r summary education vs fruits, include=F}
+#calculating averages of education vs. fruits
+marketing_campaign %>%
+  filter(Education == "2n Cycle") %>%
+  summarise(mean(MntFruits))
+
+marketing_campaign %>%
+  filter(Education == "Basic") %>%
+  summarise(mean(MntFruits))
+
+marketing_campaign %>%
+  filter(Education == "Graduation") %>%
+  summarise(mean(MntFruits))
+
+marketing_campaign %>%
+  filter(Education == "Master") %>%
+  summarise(mean(MntFruits))
+
+marketing_campaign %>%
+  filter(Education == "PhD") %>%
+  summarise(mean(MntFruits))
+```
+
+```{r plot of education vs fruits, echo = F}
+#education vs. fruits
+ggplot(data = marketing_campaign, aes(x = Education,y = MntFruits)) + 
+  geom_boxplot() +
+  ylab("Amount Spent on Fruits in Last 2 Years") +
+  xlab("Education Levels") +
+  ggtitle("Amount Spent on Fruits vs. Education Levels") +
+  coord_flip() + 
+  stat_summary(fun = mean, color = "darkred", size = 0.5, shape = "square")
+```
+
+## Sub Research Questions:
+* Does the level of education have an effect in purchasing more on fruit? 
+
+* `2n Cycle` level of education spends an average of $28.95 on fruits in the last 2 years.
+
+* `Basic` level of education spends an average of $11.11 on fruits in the last 2 years.
+
+* `Graduation` level of education spends an average of $30.77 on fruits in the last 2 years.
+
+* `Master` level of education spends an average of $21.65 on fruits in the last 2 years.
+
+* `PhD` level of education spends an average of $20.04 on fruits in the last 2 years.
+
+## Sub Research Questions:
+* What age group purchased the most fruit on average?
+```{r plot of age vs fruits, echo = FALSE}
+marketing_campaign <- marketing_campaign %>%
+  mutate(Age = 2022 - Year_Birth)
+summary(marketing_campaign$Age)
+```
+Frequency of Age Values
+```{r, echo = FALSE}
+table(marketing_campaign$Age)
+```  
+
+
+```{r, include = FALSE}
+# average spent on fruit for 5 age groups
+# without outliers
+indices_30 <- which(marketing_campaign$Age >= 30 & marketing_campaign$Age <= 39)
+indices_40 <- which(marketing_campaign$Age >= 40 & marketing_campaign$Age <= 49)
+indices_50 <- which(marketing_campaign$Age >= 50 & marketing_campaign$Age <= 59)
+indices_60 <- which(marketing_campaign$Age >= 60 & marketing_campaign$Age <= 69)
+indices_70 <- which(marketing_campaign$Age >= 70 & marketing_campaign$Age <= 79)
+avg_30 <- mean(marketing_campaign$MntFruits[indices_30])
+avg_40 <- mean(marketing_campaign$MntFruits[indices_40])
+avg_50 <- mean(marketing_campaign$MntFruits[indices_50])
+avg_60 <- mean(marketing_campaign$MntFruits[indices_60])
+avg_70 <- mean(marketing_campaign$MntFruits[indices_70])
+avg_Mnt_Fruit <- c(avg_30, avg_40, avg_50, avg_60, avg_70)
+age_group <- c("30 to 39", "40 to 49", "50 to 59", "60 to 69",
+               "70 to 79")
+age_vs_fruit <- data.frame(age_group, avg_Mnt_Fruit)
+```
+## Sub Question Age Group Conclusion:
+The age group who purchased the most fruit on average the last 2 years was between 70 to 79.
+
+```{r, echo = FALSE}
+ggplot(age_vs_fruit) +
+  geom_histogram(mapping = aes(x = age_group,
+                               y = avg_Mnt_Fruit),
+                 fill = c("light green", "yellowgreen", "gold", "orange", "orangered"),
+                 stat = "identity") +
+   ggtitle("Customer's Age vs. Average Amount Spent on Fruits in last 2 years") + 
+  xlab("Age Groups") + 
+  ylab("Average Amount Spent on Fruits ($)") +
+  geom_text(mapping = aes(x = age_group,
+                          y = avg_Mnt_Fruit,
+                          label = format(round((avg_Mnt_Fruit), 2), nsmall = 2)),
+            vjust = -1) +
+  coord_cartesian(ylim = c(0, 32))
+```
+
+## Sub Research Questions:
+* Are married people more likely to spend more on fruits?
+```{r, include=FALSE}
+avr_spent_per_status <- marketing_campaign %>%
+  group_by(Marital_Status) %>%
+  summarise(Mean = mean(MntFruits)) 
+ggplot(avr_spent_per_status) +
+  geom_bar(aes(x = Marital_Status, y = Mean, fill = Marital_Status), stat = "identity") +
+  ylim(0, 100) +
+  geom_text(aes(x = Marital_Status, y = Mean, label = round(Mean, digits = 3)), vjust = -2)
+
+logical_status <- filter(avr_spent_per_status, Marital_Status != "Absurd", Marital_Status != "YOLO"
+                         , Marital_Status != "Alone", , Marital_Status != "Single")
+
+as_one <- filter(marketing_campaign, Marital_Status == "Alone" | Marital_Status == "Single")
+
+singles <- as_one %>%
+  summarise(Mean = mean(MntFruits)) 
+
+Marital_Status <- "Single"
+
+singles$Marital_Status <- Marital_Status
+
+singles <- singles[c("Marital_Status", "Mean")]
+
+logical_status <- rbind(logical_status, singles)
+
+```
+```{r, echo=FALSE}
+ggplot(logical_status) +
+  geom_bar(aes(x = Marital_Status, y = Mean, fill = Marital_Status), stat = "identity") +
+  ylim(0, 50) +
+  geom_text(aes(x = Marital_Status, y = Mean, label = round(Mean, digits = 3)), vjust = -2)
+```
+
+## Sub Question Marriage Status Conclusion:
+
+In this variable, there are only 5 reasonable group. Two of the groups have responses that do not make sense and therefore, will not be considered in the study. The group Alone is going to be combined with the Single group as their status are the same. Of the remaining groups, it appears that the Widow groups tends to spend more on fruits compared to the other groups. Meanwhile, the Married, Divorced, Single, and Together spends around the same amount.
+
+## Sub Research Questions:
+* Do all levels of income spend the same amount on fruits on average?
+```{r, echo=F, warning=F}
+marketing_campaign2 <- filter(marketing_campaign, Income != 666666)
+
+ggplot(data = marketing_campaign2) +
+  geom_point(mapping = aes(x = Income, y = MntFruits)) +
+  geom_smooth(mapping = aes(x = Income, y = MntFruits), se = F) +
+  ggtitle("Scatterplot of Income vs Amount Spent on Fruit") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+## Sub Income Question Conclusion:
+
+We can see that there is a slight linear relationship between income and the amount spent on fruits in the scatterplot. There are a couple outliers that makes the line curve down.
+
+```{r}
+cor(marketing_campaign2$Income, marketing_campaign2$MntFruits)
+```
+
+The correlation between income and amount spent on fruits is 0.5079589. This shows a moderate that these two variables are moderately correlated.
+
+## Sub Research Questions:
+* Does the number of kids one has at home affect how much they spend on fruit?
+```{r plot of kids vs fruits, echo = F}
+
+#kids at home vs. fruits
+
+avg_spent_kids <- marketing_campaign %>%
+  group_by(Kidhome) %>%
+  summarise(Mean = mean(MntFruits)) 
+ggplot(avg_spent_kids) +
+  geom_bar(aes(x = Kidhome, y = Mean, fill = Kidhome, show.legend=FALSE), stat = "identity") +
+  ylim(0, 50) +
+  geom_text(aes(x = Kidhome, y = Mean, label = round(Mean, digits = 2), show.legend=FALSE), vjust = -2)+
+  xlab("Number of Kids at Home")+
+  ylab("Average Amount of Money Spent on Fruit Over 2 Years")+
+  guides(Kidhome = FALSE)
+
+```
+## Sub Question Number of Kids Conclusion:
+
+As we can see in the above graph, customers with no kids spend around 5 times as much on fruit than customers who do have children. Those with only 1 child spend slightly more than those with 2. 
+
+## Exploratory Analysis
+Main Research Question:
+What characteristics makes someone more likely to purchase fruits?
+
+* Multiple Linear Regression (`MntFruits`~`Education`, `Year_Birth`, `Marital_Status`, `Income`, `Kidhome`)
+
+## Main Research Question
+```{r, echo=F}
+marketing_campaign2 <- subset(marketing_campaign2, Marital_Status!="Alone" & Marital_Status!="YOLO" & Marital_Status!="Absurd")
+marketing_campaign2$Kidhome <- as.factor(marketing_campaign2$Kidhome)
+model <- lm(MntFruits ~ Education + Year_Birth + Marital_Status + Income + Kidhome, data=marketing_campaign2)
+summary(model)
+```
+
+## Model Assumptions
+
+* Assumptions:
+Linear relationship between dependent and independent variables, multicollinearity, multivariate normality, independence of observations, and constant variance of residuals.
+
+* Plots for Assumption:
+```{r, echo=F}
+plot(model)
+```
+
+## Next Steps
+* One possible next step is to do a logistic regression instead of multiple linear regression for the main research question to find our what characteristics make someone more likely to consume fruit.
+* Another possible next step is to include data analysis on the other products from our dataset such as wines, meats, gold, etc
+
+## Thank you
+
+### Questions? 
+
