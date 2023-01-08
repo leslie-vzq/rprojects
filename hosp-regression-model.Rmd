@@ -1,0 +1,676 @@
+---
+title: "Hospital Data - Linear Regression Full Model Analysis"
+author: "Leslie Vazquez Moreno"
+date: "2022-12-05"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+hosp_data <- read.csv("~/Desktop/UCR Fall 2022/STAT170/downloads/hospital_data.csv")
+hosp_data <- hosp_data[,1:5]
+# hosp_data
+```
+y = InfctRsk = Average infection risk in the hospital
+
+x1 = Beds = Average number of beds in each hospital
+
+x2 = Facilities = Average number of facilities in each hospital
+
+x3 = MedSchool (0 or 1) = Whether the hospital is part of a medical school
+
+# Explanatory Data Analysis (plots, descriptives)
+```{r}
+# scatterplots each covariate vs response variable
+# x1 vs y
+plot(hosp_data$Beds, hosp_data$InfctRsk,
+     xlab = "Beds",
+     ylab = "InfctRsk")
+# x2 vs y
+plot(hosp_data$Facilities, hosp_data$InfctRsk,
+     xlab = "Facilities",
+     ylab = "InfctRsk")
+# x3 vs y
+plot(hosp_data$MedSchool, hosp_data$InfctRsk,
+     xlab = "MedSchool",
+     ylab = "InfctRsk")
+```
+Bed and Facilites, x1 and x2 have a quadratic trend and so we will try to fit higher order terms for those. Since MedSchool, x3 is binary, there is only 0 or 1 but we see that 1 varies more than 0.
+
+```{r}
+# looking for multicollinearity, pattern, between the covariates
+library(faraway)
+pairs(hosp_data[,c(2, 3, 5)])
+```
+There seems to be multicollinearity for beds and facilities because the scatterplots form a pattern. MedSchool seems to have correlation with facilities and beds, but not as much for beds because there seems to be more variability for 1 than 0.
+
+# Methodology (steps, models fit, complete case analysis document)
+
+For the exploratory analysis, before any model fitting, I looked into each covariate versus response variable scatterplot to look for any possible quadratic trends. I also looked into some possible multicollinearity by looking at scatterplots between each covariates.
+
+Model 1:
+
+$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_3 x_3 + \epsilon\\$
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3\\$
+$\hat{y} = 2.9051550 + 0.0005946 x_1 + 0.0302925 x_2 - 0.0089701 x_3\\$
+
+y = InfctRsk = Average infection risk in the hospital
+
+x1 = Beds = Average number of beds in each hospital
+
+x2 = Facilities = Average number of facilities in each hospital
+
+x3 = MedSchool (0 or 1) = Whether the hospital is part of a medical school
+
+For Model 1, I did an outlier and influential check. Then an assumption check. There were no concerns in the checks so I moved on to add second order terms to the model based on the quadratic form from the covariate versus response scatterplot in exploratory analysis and the crPlots.
+
+Model 2:
+
+$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_3 x_3 + \beta_4 x_1^2 + \beta_5 x_2^2 + \epsilon\\$
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3 + \hat{\beta_4} x_1^2 + \hat{\beta_5} x_2^2\\$
+$\hat{y} = 0.9713 + 0.004384 x_1 + 0.1350 x_2 - 0.2903 x_3 - 0.000002929 x_1^2 - 0.001438 x_2^2\\$
+
+y = InfctRsk = Average infection risk in the hospital
+
+x1 = Beds = Average number of beds in each hospital
+
+x2 = Facilities = Average number of facilities in each hospital
+
+x3 = MedSchool (0 or 1) = Whether the hospital is part of a medical school
+
+For Model 2, I did an assumption check and again no concerns. I removed the second order terms that were not significant based on the t-test p-value.
+
+Model 3:
+
+$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_3 x_3 + \beta_4 x_2^2 + \epsilon\\$
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3 + \hat{\beta_4} x_2^2\\$
+$\hat{y} = 0.7784764 + 0.0020310 x_1 + 0.1567741 x_2 - 0.2897944 x_3 - 0.0016521 x_2^2\\$
+
+y = InfctRsk = Average infection risk in the hospital
+
+x1 = Beds = Average number of beds in each hospital
+
+x2 = Facilities = Average number of facilities in each hospital
+
+x3 = MedSchool (0 or 1) = Whether the hospital is part of a medical school
+
+For Model 2, I did an assumption check and again no concerns. The second order term kept is significant so I proceeded to add all interaction terms.
+
+Model 4:
+
+$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_3 x_3 + \beta_4 x_2^2 + \beta_5 x_1x_2 + \beta_6 x_1x_3 + \beta_7 x_2x_3 + \beta_8 x_1x_2x_3 + \epsilon\\$
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3 + \hat{\beta_4} x_2^2 + \hat{\beta_5} x_1x_2 + \hat{\beta_6} x_1x_3 + \hat{\beta_7} x_2x_3 + \hat{\beta_8} x_1x_2x_3\\$
+$\hat{y} = 5.0179292 - 0.0059338 x_1 + 0.0771218 x_2 - 4.5152466 x_3 - 0.0013207 x_2^2 + 0.0001071 x_1x_2 + 0.0124277 x_1x_3 + 0.0594453 x_2x_3 - 0.0001805 x_1x_2x_3\\$
+
+y = InfctRsk = Average infection risk in the hospital
+
+x1 = Beds = Average number of beds in each hospital
+
+x2 = Facilities = Average number of facilities in each hospital
+
+x3 = MedSchool (0 or 1) = Whether the hospital is part of a medical school
+
+For Model 4 with all interaction terms, I did an assumption check with no concerns. All the interaction terms were insignicant based on the t-test p-value so the next model will exclude all interaction terms. I also performed an F-test, an anova comparing Model 3 to Model 4 to confirm that the interaction terms should be removed because they are not significant.
+
+Model 3:
+
+$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_3 x_3 + \beta_4 x_2^2 + \epsilon\\$
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3 + \hat{\beta_4} x_2^2\\$
+$\hat{y} = 0.7784764 + 0.0020310 x_1 + 0.1567741 x_2 - 0.2897944 x_3 - 0.0016521 x_2^2\\$
+
+y = InfctRsk = Average infection risk in the hospital
+
+x1 = Beds = Average number of beds in each hospital
+
+x2 = Facilities = Average number of facilities in each hospital
+
+x3 = MedSchool (0 or 1) = Whether the hospital is part of a medical school
+
+After removing all the insignificant interaction terms, so all the interaction terms, I returned to Model 3. I already did an assumption check for this same model and it was all satisfied so it was not necessary to do again. Now, looking at the t-test p-value for the 1st order terms, I proceeded to exclude the insignificant first order terms for the next model.
+
+Model 5:
+
+$y = \beta_0 + \beta_1 x_2 + \beta_2 x_2^2 + \epsilon\\$
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_2 + \hat{\beta_2} x_2^2\\$
+$\hat{y} = 0.748564 + 0.142225 x_2 - 0.001210 x_2^2\\$
+
+y = InfctRsk = Average infection risk in the hospital
+
+x2 = Facilities = Average number of facilities in each hospital
+
+For Model 5, I performed an outlier and influential check. Then an assumption check and a last check at the t-test p-values to make sure all terms were significant. There were no concerns and I performed an F-test, an anova on Model 3 and Model 5 to confirm that all the first order terms removed were not significant. I concluded this to be the final model.
+
+Checks Performed:
+
+* Assumption Check:
+  * Multicollinearity
+    * Using vif, variance inflation factor (satisfied if no covariates are above 5; a note is that interaction term and covariates within that interaction term and 2nd order terms and that same covariate's 1st order term should be collinear so those should be greater than 5; multicollinearity between covariates, not the same covariates is the concern)
+  * Normality
+    * Using qqplot (satisfied if no points drastically deviate from qqnorm line, most points fall on the qqnorm line)
+    * Using Shapiro Wilks test (satisfied if p-value above $\alpha$ = 0.05)
+  * Constant Variance
+    * Using residual vs fitted scatterplots (satisfied there is no pattern)
+    * Breusch-Pagan test (satisfied if p-value above $\alpha$ = 0.05)
+  * Independence
+    * Using Durbin Watson Test (satisfied if p-value above $\alpha$ = 0.05)
+  * Mean of Error
+    * Using crPlots (satisfied if the pink line does not deviate much from the blue line)
+    * residual vs fitted scatterplot (satisfied if the center is constantly 0 for the residuals in the plot)
+* Outlier Test:
+  * Check if any points in the standardized residuals plot are outside -3 and 3, these outlier points are regarded but not excluded
+* Influential Test:
+  * Check if any points plotted using cooks.distance were above 0.5 (no influential points if all points below 0.5)
+
+# Final Model (estimated regression line equation with interpretation)
+
+$y = \beta_0 + \beta_1 x_2 + \beta_2 x_2^2 + \epsilon\\$
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_2 + \hat{\beta_2} x_2^2\\$
+$\hat{y} = 0.748564 + 0.142225 x_2 - 0.001210 x_2^2\\$
+
+y = InfctRsk = Average infection risk in the hospital
+
+x2 = Facilities = Average number of facilities in each hospital
+
+Interpretation:
+
+$\hat{\beta_0}$: When the average number of facilities in each hospital is 0, the estimated average infection risk in the hospital is 0.748564. This is not a practical interpretation because the range of the average number of facilities in each hospital does not include 0 so this would be extrapolation.
+
+$\hat{\beta_1}$: As the average number of facilities in each hospital increase by 1 facilities, the estimated average infection risk in the hospital increases by 0.142225 but this, in general, is not a meaningful interpretation in this quadratic model.
+
+$\hat{\beta_2}$: The rate of curvature for the average infection risk in the hospital as the average number of facilities in each hospital increases is - 0.001210, since it is less than 0, it implies a downward curvature for the average infection risk in the hospital so the average infection risk in the hospital increases at a slower rate as the average number of facilities in each hospital increases by one unit for higher average number of facilities in each hospital than lower average number of facilities in each hospital.
+
+# Appendix (R code with comments)
+```{r}
+# full 1st order model
+# model with all covariates
+result.hosp_data <- lm(hosp_data$InfctRsk ~ hosp_data$Beds + hosp_data$Facilities 
+                       + hosp_data$MedSchool)
+summary(result.hosp_data)
+```
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3\\$
+
+```{r}
+# assumptions
+# full 1st order model
+# test variance inflation factor, multicollinearity between covariates
+vif(result.hosp_data)
+```
+
+VIF (Variance Inflation Factor) is not greater than 5 for any of the covariates, so no multicollinearity is satisfied.
+
+```{r}
+# assumptions
+# test full 1st order model residuals for normality
+# testing y of model normal
+qqnorm(resid(result.hosp_data))
+qqline(resid(result.hosp_data))
+# shapiro wilks test for normality
+shapiro.test(resid(result.hosp_data))
+```
+$H_o$: normal residuals
+
+$H_a$: residuals are not normal
+
+We see a few deviations at the tail, but this suggests normality since most of the points are along the normal line and the few deviations are at the tail. The p-value of 0.4745 for the Shapiro Wilks test is greater than $\alpha$ = 0.05, so we fail to reject $H_o$ and conclude the residuals are normal so the y of the model, InfctRsk is normal.
+
+```{r}
+# assumptions
+# full 1st order model
+# testing for constant variance in residuals
+plot(result.hosp_data$fitted.values, 
+     resid(result.hosp_data), 
+     xlab = "Fitted Values",
+     ylab = "Residual")
+# breusch pagan test testing for constant variance
+library(lmtest)
+bptest(result.hosp_data)
+```
+$H_o$: residuals have constant variance
+
+$H_a$: residuals do not have constant variance
+
+The residual vs fitted plot is random and the p-value for the Breusch-Pagan test is 0.7545. Since we fail to reject the null hypothesis, we can conclude that there is constant variance.
+
+```{r}
+# assumptions
+# full 1st order model
+# testing for independence among y's
+require(car)
+durbinWatsonTest(result.hosp_data)
+```
+$H_o$: residuals are independent
+
+$H_a$: residuals are not independent
+
+Since the p-value of the Durbin Watson test is 0.468, greater than $\alpha$ = 0.05, we fail to reject $H_0$ and conclude that the observations are independent.
+
+```{r}
+# assumptions
+# full 1st order model
+# test mean of error
+require(car)
+crPlots(result.hosp_data)
+```
+We see very little deviance for Beds and MedSchool but there is much more deviance for Facilities and so we should consider adding a second order to the Facilities covariate to the model.
+
+```{r}
+# full 1st order model
+# outliers
+# standardized residuals
+plot(rstandard(result.hosp_data), 
+     ylim = c(-4, 4),
+     ylab = "Standardized Residuals",
+     xlab = "Observation ID")
+abline(h = c(-3, 3), col = "blue")
+```
+There is 1 outlier beyond the 3 standard deviations between 3 and 3.5.
+
+```{r}
+# full 1st order model
+# check influential points
+# cooks distance
+library(car)
+plot(cooks.distance(result.hosp_data),
+     ylim = c(0, 0.5),
+     ylab = "Cook's Distance",
+     xlab = "Observation ID")
+abline(h = 0.5, col = "blue")
+```
+None of the observations are influential since none of the Cook's Distance for any of the points are above 0.5.
+
+```{r}
+# update model
+# model 2
+# added possible 2nd order
+result.hosp_data2 <- lm(hosp_data$InfctRsk ~ hosp_data$Beds + hosp_data$Facilities 
+                        + hosp_data$MedSchool + I(hosp_data$Beds^2) + I(hosp_data$Facilities^2))
+summary(result.hosp_data2)
+```
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3 + \hat{\beta_4} x_1^2 + \hat{\beta_5} x_2^2\\$
+
+$H_o$: $\beta_4 = 0$
+
+$H_a$: $\beta_4 \neq 0$
+
+Since the p-value for the Beds second order is 0.36344, we can fail to reject $H_o$ and conclude that this $\hat{\beta}^2_1$ is not significant and therefore not necessary for our model.
+
+$H_o$: $\beta_5 = 0$
+
+$H_a$: $\beta_5 \neq 0$
+
+Since the p-value for the Facilities second order is 0.00420, we can reject $H_o$ and conclude that this $\hat{\beta}^2_2$ is significant and therefore necessary for our model.
+
+```{r}
+# assumptions
+# model 2
+# test variance inflation factor, multicollinearity between covariates
+vif(result.hosp_data2)
+```
+VIF (Variance Inflation Factor) is greater than 5 for all of the covariates  except MedSchool but since the 2 highest are faciltites 1st and 2nd order, this is not between covariates collinearity and same for the next 2 highest, beds 1st and 2nd order so multicollinearity is still satisfied.
+
+```{r}
+# assumptions
+# model 2
+# test model residuals for normality
+# testing y of model normal
+qqnorm(resid(result.hosp_data2))
+qqline(resid(result.hosp_data2))
+# shapiro wilks test for normality
+shapiro.test(resid(result.hosp_data2))
+```
+$H_o$: normal residuals
+
+$H_a$: residuals are not normal
+
+We see a few deviations at the tails, but this suggests normality since most of the points are along the normal line and the few deviations are at the tail. The p-value of 0.5683 for the Shapiro Wilks test is greater than $\alpha$ = 0.05, so we fail to reject $H_o$ and conclude the residuals are normal so the y of the model, InfctRsk is normal.
+
+```{r}
+# assumptions
+# model 2
+# testing for constant variance in residuals
+plot(result.hosp_data2$fitted.values, 
+     resid(result.hosp_data2), 
+     xlab = "Fitted Values",
+     ylab = "Residual")
+# breusch pagan test testing for constant variance
+library(lmtest)
+bptest(result.hosp_data2)
+```
+$H_o$: residuals have constant variance
+
+$H_a$: residuals do not have constant variance
+
+A few points from the residual vs fitted plot seem to suggest a fan shape but since the p-value for the Breusch-Pagan test is 0.6981, we fail to reject the null hypothesis and conclude constant variance.
+
+```{r}
+# assumptions
+# model 2
+# testing for independence among y's
+require(car)
+durbinWatsonTest(result.hosp_data2)
+```
+$H_o$: residuals are independent
+
+$H_a$: residuals are not independent
+
+Since the p-value of the Durbin Watson test is 0.084, greater than $\alpha$ = 0.05, we fail to reject $H_0$ and conclude that the observations are independent.
+
+```{r}
+# assumptions
+# model 2
+# test mean of error
+require(car)
+crPlots(result.hosp_data2)
+```
+We see very little deviance for all covariates from the pink line to the blue line so mean of error is satisfied.
+
+
+```{r}
+# update model, model 3
+# removed unnecessary 2nd order
+result.hosp_data3 <- lm(hosp_data$InfctRsk ~ hosp_data$Beds + hosp_data$Facilities 
+                        + hosp_data$MedSchool + I(hosp_data$Facilities^2))
+summary(result.hosp_data3)
+```
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3 + \hat{\beta_4} x_2^2\\$
+
+$H_o$: $\beta_4 = 0$
+
+$H_a$: $\beta_4 \neq 0$
+
+Since the p-value for the Facilities second order is 0.00022, we can reject $H_o$ and conclude that this $\beta_4$ is significant and therefore necessary for our model.
+
+```{r}
+# assumptions
+# model 3
+# test variance inflation factor, multicollinearity between covariates
+vif(result.hosp_data3)
+```
+VIF (Variance Inflation Factor) is greater than 5 for Facilities 1st and 2nd order but this is not between covariates collinearity so multicollinearity is still satisfied.
+
+```{r}
+# assumptions
+# model 3
+# test model residuals for normality
+# testing y of model normal
+qqnorm(resid(result.hosp_data3))
+qqline(resid(result.hosp_data3))
+# shapiro wilks test for normality
+shapiro.test(resid(result.hosp_data3))
+```
+$H_o$: normal residuals
+
+$H_a$: residuals are not normal
+
+We see a few deviations at the tails, but this suggests normality since most of the points are along the normal line and the few deviations are at the tail. The p-value of 0.5596 for the Shapiro Wilks test is greater than $\alpha$ = 0.05, so we fail to reject $H_o$ and conclude the residuals are normal so the y of the model, InfctRsk is normal.
+
+```{r}
+# assumptions
+# model 3
+# testing for constant variance in residuals
+plot(result.hosp_data3$fitted.values, 
+     resid(result.hosp_data3), 
+     xlab = "Fitted Values",
+     ylab = "Residual")
+# breusch pagan test testing for constant variance
+library(lmtest)
+bptest(result.hosp_data3)
+```
+$H_o$: residuals have constant variance
+
+$H_a$: residuals do not have constant variance
+
+A few points from the residual vs fitted plot seem to suggest a fan shape but since the p-value is 0.5276, greater than $\alpha$ = 0.05, we fail to reject the null hypothesis and conclude constant variance.
+
+```{r}
+# assumptions
+# model 3
+# testing for independence among y's
+require(car)
+durbinWatsonTest(result.hosp_data3)
+```
+$H_o$: residuals are independent
+
+$H_a$: residuals are not independent
+
+Since the p-value of the Durbin Watson test is 0.146, greater than $\alpha$ = 0.05, we fail to reject $H_0$ and conclude that the observations are independent.
+
+```{r}
+# assumptions
+# model 3
+# test mean of error
+require(car)
+crPlots(result.hosp_data3)
+```
+We see very little deviance for all covariates and Facilities 2nd order from the pink line to the blue line, so mean of error is satisfied.
+
+```{r}
+# testing interactions 3 way
+# model 4
+# t-test
+result.hosp_data4 <- lm(hosp_data$InfctRsk ~ hosp_data$Beds * hosp_data$Facilities * 
+                          hosp_data$MedSchool + I(hosp_data$Facilities^2))
+summary(result.hosp_data4)
+```
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3 + \hat{\beta_4} x_2^2 + \hat{\beta_5} x_1x_2 + \hat{\beta_6} x_1x_3 + \hat{\beta_7} x_2x_3 + \hat{\beta_8} x_1x_2x_3\\$
+
+$H_o$: $\beta_5 = 0$, $H_o$: $\beta_6 = 0$, $H_o$: $\beta_7 = 0$, $H_o$: $\beta_8 = 0$
+
+$H_a$: $\beta_5 \neq 0$, $H_a$: $\beta_6 \neq 0$, $H_a$: $\beta_7 \neq 0$, $H_a$: $\beta_8 \neq 0$
+
+Since all probabilities for interaction terms, 0.631 for beds and facilities, 0.405 for beds and med school, 0.645 for facilities and med school, and 0.431 for all 3 covariates are greater than $\alpha$ = 0.05, we fail to reject $H_o$ and conclude that these interaction terms are not significant and therefore not necessary to the model. We will remove all interaction terms from the model.
+
+```{r}
+# testing interactions 2 way vs 3 way 
+# model 4
+# F test
+anova(result.hosp_data3, result.hosp_data4)
+```
+Since the p-value is 0.8129, greater than $\alpha$ = 0.05, we fail to reject the $H_o$ and conclude that none of the interactions are significant and confirm these interaction terms should be removed from the model.
+
+```{r}
+# assumptions
+# model 4
+# test variance inflation factor, multicollinearity between covariates
+vif(result.hosp_data4)
+```
+VIF (Variance Inflation Factor) is greater than 5 for all of these covariates, although since the covariates are collinear to their interaction terms and 1st order Facilities to 2nd order, but not between covariates, as we have seen from previous models, multicollinearity is satisfied.
+
+```{r}
+# assumptions
+# model 4
+# test model residuals for normality
+# testing y of model normal
+qqnorm(resid(result.hosp_data4))
+qqline(resid(result.hosp_data4))
+# shapiro wilks test for normality
+shapiro.test(resid(result.hosp_data4))
+```
+$H_o$: normal residuals
+
+$H_a$: residuals are not normal
+
+We see a few deviations at the tails, but this suggests normality since most of the points are along the normal line and the few deviations are at the tail. The p-value of 0.5849 for the Shapiro Wilks test is greater than $\alpha$ = 0.05, so we fail to reject $H_o$ and conclude the residuals are normal so the y of the model, InfctRsk is normal.
+
+```{r}
+# assumptions
+# model 4
+# testing for constant variance in residuals
+plot(result.hosp_data4$fitted.values, 
+     resid(result.hosp_data4), 
+     xlab = "Fitted Values",
+     ylab = "Residual")
+# breusch pagan test testing for constant variance
+library(lmtest)
+bptest(result.hosp_data4)
+```
+$H_o$: residuals have constant variance
+
+$H_a$: residuals do not have constant variance
+
+A few points from the residual vs fitted plot seem to suggest a fan shape but since the p-value is 0.8926, greater than $\alpha$ = 0.05, we fail to reject the null hypothesis and conclude constant variance.
+
+```{r}
+# assumptions
+# model 4
+# testing for independence among y's
+require(car)
+durbinWatsonTest(result.hosp_data4)
+```
+$H_o$: residuals are independent
+
+$H_a$: residuals are not independent
+
+Since the p-value of the Durbin Watson test is 0.108, greater than $\alpha$ = 0.05, we fail to reject $H_0$ and conclude that the observations are independent.
+
+```{r}
+# assumptions
+# model 4
+# test mean of error
+# require(car)
+# crPlots(result.hosp_data4)
+plot(result.hosp_data4$fitted.values, 
+     resid(result.hosp_data4), 
+     xlab = "Fitted Values",
+     ylab = "Residual")
+abline(h = 0, lty = 2)
+```
+The mean of error crPlots test does not work for interactions but in the residual vs fitted plot for this model, we see that the residual errors are centered about 0, so mean of error assumption is satisfied.
+
+
+```{r}
+# update model
+# back to model 3
+# remove all interaction terms
+summary(result.hosp_data3)
+```
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3 + \hat{\beta_4} x_2^2\\$
+
+$H_o$: $\beta_1 = 0$
+
+$H_a$: $\beta_1 \neq 0$
+
+Since Beds has a p-value of 0.05971, it is greater than $\alpha$ = 0.05, and therefore we fail to reject $H_o$ and conclude that this covariate is not significant and we should remove Beds, x1 from the model.
+
+$H_o$: $\beta_3 = 0$
+
+$H_a$: $\beta_3 \neq 0$
+
+Since MedSchool has a p-value of 0.45858, it is greater than $\alpha$ = 0.05, and therefore we fail to reject $H_o$ and conclude that this covariate is not significant and we should remove MedSchool, x3 from the model.
+Since Facilities first and second order has a p-value about 0, they are significantly less than $\alpha$ = 0.05, and therefore we reject $H_o$ and conclude that this covariate is significant and we should keep them in the model.
+
+Assumptions tested already for Model 3.
+
+```{r}
+# final model, model 5
+# removed insignificant 1st order covariates
+result.hosp_data5 <- lm(hosp_data$InfctRsk ~ hosp_data$Facilities + I(hosp_data$Facilities^2))
+summary(result.hosp_data5)
+```
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_2 + \hat{\beta_2} x_2^2\\$
+
+$H_o$: $\beta_1 = 0$, $H_o$: $\beta_2 = 0$
+
+$H_a$: $\beta_1 \neq 0$, $H_a$: $\beta_2 \neq 0$
+
+Since the p-values are less than $\alpha$ = 0.05, we can reject the null hypothesis and conclude that $\beta_1$ and $\beta_2$ are significant. So all terms in the model are significant.
+
+```{r}
+# final model, model 5
+# F test on removing 1st order covariates
+anova(result.hosp_data5, result.hosp_data3)
+```
+Since the p-value is 0.07994, greater than $\alpha$ = 0.05, we fail to reject the $H_o$ and conclude that neither Beds nor Facilities first order covariates are significant and confirm these first order terms should be removed from the model.
+
+```{r}
+# final model, model 5
+# outliers
+# standardized residuals
+plot(rstandard(result.hosp_data5), 
+     ylim = c(-3, 4),
+     ylab = "Standardized Residuals",
+     xlab = "Observation ID")
+abline(h = c(-3, 3), col = "blue")
+```
+There is 1 outlier beyond the 3 standard deviations between 3 and 3.5.
+
+```{r}
+# final model, model 5
+# check influential points
+# cooks distance
+library(car)
+plot(cooks.distance(result.hosp_data5),
+     ylim = c(0, 0.5),
+     ylab = "Cook's Distance",
+     xlab = "Observation ID")
+abline(h = 0.5, col = "blue")
+```
+None of the observations are influential since none of the Cook's Distance for any of the points are above 0.5.
+
+```{r}
+# assumptions
+# final model, model 5
+# test variance inflation factor, multicollinearity between covariates
+vif(result.hosp_data5)
+```
+VIF (Variance Inflation Factor) is not greater than 5 for any of the covariates, so multicollinearity is satisfied.
+
+```{r}
+# assumptions
+# final model, model 5
+# test model residuals for normality
+# testing y of model normal
+qqnorm(resid(result.hosp_data5))
+qqline(resid(result.hosp_data5))
+# shapiro wilks test for normality
+shapiro.test(resid(result.hosp_data5))
+```
+$H_o$: normal residuals
+
+$H_a$: residuals are not normal
+
+We see a few deviations at the tails, but this suggests normality since most of the points are along the normal line and the few deviations are at the tail. The p-value of 0.5697 for the Shapiro Wilks test is greater than $\alpha$ = 0.05, so we fail to reject $H_o$ and conclude the residuals are normal so the y of the model, InfctRsk is normal.
+
+```{r}
+# assumptions
+# final model, model 5
+# testing for constant variance in residuals
+plot(result.hosp_data5$fitted.values, 
+     resid(result.hosp_data5), 
+     xlab = "Fitted Values",
+     ylab = "Residual")
+# breusch pagan test testing for constant variance
+library(lmtest)
+bptest(result.hosp_data5)
+```
+$H_o$: residuals have constant variance
+
+$H_a$: residuals do not have constant variance
+
+A few points from the residual vs fitted plot seem to suggest a fan shape but since the p-value is 0.4797, greater than $\alpha$ = 0.05, we fail to reject the null hypothesis and conclude constant variance.
+
+```{r}
+# assumptions
+# final model, model 5
+# testing for independence among y's
+require(car)
+durbinWatsonTest(result.hosp_data5)
+```
+$H_o$: residuals are independent
+
+$H_a$: residuals are not independent
+
+Since the p-value of the Durbin Watson test is 0.29, greater than $\alpha$ = 0.05, we fail to reject $H_0$ and conclude that the observations are independent.
+
+```{r}
+# assumptions
+# final model, model 5
+# test mean of error
+require(car)
+crPlots(result.hosp_data5)
+```
+We see very little deviance for Facilities first and second order so mean of error is satisfied.
+
