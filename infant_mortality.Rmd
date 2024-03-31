@@ -1,0 +1,475 @@
+---
+title: "Infant Mortality"
+author: "Leslie Vazquez Moreno"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+library(tidyverse)
+library(car)
+library(MASS)
+```
+
+# Data
+
+```{r}
+# Loading in dataset
+birthwgt1 = read.csv("rproject/birthwgt.csv")
+head(birthwgt1)
+```
+
+# birthwgt data description
+
+The name of the dataset is 2003 birth weight data set from the sashelp datasets. There are 100,000 observations total but 93,292 random observations in the clean dataset about infant mortality recorded from the US National Center for Health Statistics. There are 8 variables total: 
+
+AgeGroup is numeric while the other variables are characters. All variables are categorical. LowBirthWgt, Married, Drinking, Death, Smoking, and SomeCollege are binary yes or no input. AgeGroup ranges from 1 to 3 levels. Race has 1 of the following 5 inputs: Asian, White, Native, Black, or Hispanic.
+
+# EDA 
+
+```{r}
+# number of observations and number of variables
+dim(birthwgt1)
+```
+
+```{r}
+# variables description
+summary(birthwgt1)
+```
+
+## Missing Values
+```{r}
+# checking for NA observations from variables
+colSums(is.na(birthwgt1))
+```
+
+```{r}
+# check for any inputted outliers
+for(i in 1:8){
+  print(unique(birthwgt1[,i]))
+}
+```
+There are some missing character values for variables 5, 7, and 8 which is Drinking, Smoking, and SomeCollege. 
+
+There are no NA's but there are values inputted "" as blank characters. This is not the binary input of "Yes" and "No."
+
+```{r}
+# looking into missing values for Drinking
+nrow(birthwgt1[birthwgt1$Drinking == "", ])
+
+# looking into missing values for Smoking
+nrow(birthwgt1[birthwgt1$Smoking == "", ])
+
+# looking into missing values for SomeCollege
+nrow(birthwgt1[birthwgt1$SomeCollege == "", ])
+
+# looking into how many observations are missing Drinking, Smoking, and SomeCollege values
+# birthwgt[birthwgt$Drinking == "" & birthwgt$Smoking == "" & birthwgt$SomeCollege == "", ]
+nrow(birthwgt1[birthwgt1$Drinking == "" & birthwgt1$Smoking == "" & birthwgt1$SomeCollege == "", ])
+```
+
+There are 5612 observations with missing Drinking value. There are 5612 observations with missing Smoking value. There are 6708 observations with missing SomeCollege value.
+
+```{r}
+# no more missing drink, smoke, or somecollege values
+index_missing_college = which(birthwgt1$SomeCollege == "")
+birthwgt = birthwgt1[-index_missing_college, ]
+```
+
+There were 5612 observations missing Drinking, Smoking, and SomeCollege values. In total, SomeCollege was missing 6706 values. The missing values, in total 6706 observations were removed from the original 100,000 observations, resulting in the 93,292 in the clean dataset. The clean dataset has no missing values.
+
+# EDA: Graphs/Tables
+
+## Chi-Square Test of Independence with Death
+```{r}
+chi = c()
+for(i in c(1:5, 7:8)){
+  chi[i] = chisq.test(birthwgt$Death, birthwgt[,i])[[3]]
+}
+knitr::kable( data.frame(variable = colnames(birthwgt)[c(1:5, 7:8)],
+           p_value = round(chi[c(1:5, 7:8)], 4)) ) 
+```
+
+Drinking is the only variable that is independent from Death because it has a p-value of 0.1671, greater than $\alpha = 0.05$. All other variables are dependent with Death.
+
+## Frequency Plots (Independent Variable Vs Death):
+
+```{r}
+library(colorspace)
+par(mfrow = c(2,2))
+plot(table(birthwgt$Death, birthwgt$LowBirthWgt),
+     main = "LowBirthWgt Vs Death",
+     ylab = "LowBirthWgt",
+     xlab = "Death",
+     col = c("lightblue", "lightsalmon"))
+
+plot(table(birthwgt$Death, birthwgt$Married),
+     main = "Married Vs Death",
+     cex.main = 0.2,
+     ylab = "Married",
+     xlab = "Death",
+     col = c("lightblue", "lightsalmon"))
+
+plot(table(birthwgt$Death, birthwgt$AgeGroup),
+     main = "AgeGroup Vs Death",
+     cex.main = 0.2,
+     ylab = "AgeGroup",
+     xlab = "Death",
+     col = c("lightblue", "lightsalmon", "lightpink"))
+
+plot(table(birthwgt$Death, birthwgt$Race),
+     main = "Race Vs Death",
+     cex.main = 0.2,
+     ylab = "Race",
+     las = 1,
+     xlab = "Death",
+     col = c("lightblue", "lightsalmon", "lightpink", "palegreen", "plum"))
+
+par(mfrow = c(1,1))
+```
+
+```{r}
+par(mfrow = c(2,2))
+plot(table(birthwgt$Death, birthwgt$Drinking),
+     main = "Drinking Vs Death",
+     ylab = "Drinking",
+     xlab = "Death",
+     col = c("lightblue", "lightsalmon"))
+
+plot(table(birthwgt$Death, birthwgt$Smoking),
+     main = "Smoking Vs Death",
+     ylab = "Smoking",
+     xlab = "Death",
+     col = c("lightblue", "lightsalmon"))
+
+plot(table(birthwgt$Death, birthwgt$SomeCollege),
+     main = "SomeCollege Vs Death",
+     ylab = "SomeCollege",
+     xlab = "Death",
+     col = c("lightblue", "lightsalmon"))
+
+par(mfrow = c(1,1))
+```
+
+There was little death observations in the clean data.
+
+## Frequency Tables (Each Variable for All Observations):
+
+```{r}
+par(mfrow = c(2,2))
+barplot(as.numeric(table(birthwgt$Death)),
+     main = "Frequency of Death",
+     xlab = "Death",
+     ylab = "Frequency",
+     col = c("lightblue", "lightsalmon"))
+
+barplot(table(birthwgt$LowBirthWgt),
+     main = "Frequency of LowBirthWgt",
+     xlab = "LowBirthWgt",
+     ylab = "Frequency",
+     col = c("lightblue", "lightsalmon"))
+
+barplot(table(birthwgt$Married),
+     main = "Frequency of Married",
+     xlab = "Married",
+     ylab = "Frequency",
+     col = c("lightblue", "lightsalmon"))
+
+barplot(table(birthwgt$AgeGroup),
+     main = "Frequency of AgeGroup",
+     xlab = "AgeGroup",
+     ylab = "Frequency",
+     col = c("lightblue", "lightsalmon", "lightpink"))
+par(mfrow = c(1,1))
+```
+
+```{r}
+par(mfrow = c(2,2))
+barplot(table(birthwgt$Race),
+     main = "Frequency of Race",
+     xlab = "Race",
+     ylab = "Frequency",
+     col = c("lightblue", "lightsalmon", "lightpink", "palegreen", "plum"))
+
+barplot(table(birthwgt$Drinking),
+     main = "Frequency of Drinking",
+     xlab = "Drinking",
+     ylab = "Frequency",
+     col = c("lightblue", "lightsalmon"))
+
+barplot(table(birthwgt$Smoking),
+     main = "Frequency of Smoking",
+     xlab = "Smoking",
+     ylab = "Frequency",
+     col = c("lightblue", "lightsalmon"))
+
+barplot(table(birthwgt$SomeCollege),
+     main = "Frequency of SomeCollege",
+     xlab = "SomeCollege",
+     ylab = "Frequency",
+     col = c("lightblue", "lightsalmon"))
+par(mfrow = c(1,1))
+```
+
+## Frequency Tables (Each Independent Variable for Observations with Infant Death):
+
+Only Deaths Analysis
+
+```{r}
+# new dataset with only data with infant deaths
+only_deaths = birthwgt[birthwgt$Death == "Yes", ]
+```
+
+```{r}
+par(mfrow = c(2, 2))
+barplot(as.numeric(table(only_deaths$Death, only_deaths$LowBirthWgt)),
+        col = c("lightblue", "lightsalmon"),
+        xlab = "LowBirthWgt",
+        ylab = "Frequency of Deaths",
+        main = "LowBirthWgt for Deaths")
+
+barplot(as.numeric(table(only_deaths$Death, only_deaths$Married)),
+     col = c("lightblue", "lightsalmon"),
+     xlab = "Married",
+     ylab = "Frequency of Deaths",
+     main = "Married for Deaths")
+
+barplot(as.numeric(table(only_deaths$Death, only_deaths$AgeGroup)),
+     col = c("lightblue", "lightsalmon", "lightpink"),
+     xlab = "AgeGroup",
+     ylab = "Frequency of Deaths",
+     main = "AgeGroup for Infant Deaths")
+
+barplot(as.numeric(table(only_deaths$Death, only_deaths$Race)),
+     col = c("lightblue", "lightsalmon", "lightpink", "palegreen", "plum"),
+     xlab = "Race",
+     ylab = "Frequency of Deaths",
+     main = "Race for Deaths")
+par(mfrow = c(1, 1))
+```
+
+```{r}
+par(mfrow = c(2, 2))
+barplot(as.numeric(table(only_deaths$Death, only_deaths$Drinking)),
+     col = c("lightblue", "lightsalmon"),
+     xlab = "Drinking",
+     ylab = "Frequency of Deaths",
+     main = "Drinking for Deaths")
+
+barplot(as.numeric(table(only_deaths$Death, only_deaths$Smoking)),
+     col = c("lightblue", "lightsalmon"),
+     xlab = "Smoking",
+     ylab = "Frequency of Deaths",
+     main = "Smoking for Deaths")
+
+barplot(as.numeric(table(only_deaths$Death, only_deaths$SomeCollege)),
+     col = c("lightblue", "lightsalmon"),
+     xlab = "SomeCollege",
+     ylab = "Frequency of Deaths",
+     main = "SomeCollege for Deaths")
+par(mfrow = c(1, 1))
+```
+
+It appears that the barplots for each variable comparing all observations and only observations with death are similar. Notable differences were found in low birth weight, married, race, and some college.
+
+## Correlation Matrix Between Independent Variables
+
+Correlation Heatmap
+
+```{r}
+birthwgt_most_binary = birthwgt %>%
+  mutate(LowBirthWgt = ifelse(birthwgt$LowBirthWgt == "Yes", 1, 0),
+         Married = ifelse(birthwgt$Married == "Yes", 1, 0),
+         Drinking = ifelse(birthwgt$Drinking == "Yes", 1, 0),
+         Death = ifelse(birthwgt$Death == "Yes", 1, 0),
+         Smoking = ifelse(birthwgt$Smoking == "Yes", 1, 0),
+         SomeCollege = ifelse(birthwgt$SomeCollege == "Yes", 1, 0),
+         Asian = ifelse(birthwgt$Race == "Asian", 1, 0),
+         White = ifelse(birthwgt$Race == "White", 1, 0),
+         Native = ifelse(birthwgt$Race == "Native", 1, 0),
+         Black = ifelse(birthwgt$Race == "Black", 1, 0),
+         Hispanic = ifelse(birthwgt$Race == "Hispanic", 1, 0)
+                       )
+birthwgt_most_binary = subset(birthwgt_most_binary, select = -c(Race))
+```
+
+```{r}
+# correlation matrix and heatmap
+cormat <- round(cor(birthwgt_most_binary),2)
+library(reshape2)
+melted_cormat <- melt(cormat)
+library(ggplot2)
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+```
+
+Drinking and Smoking are highly correlated. Since Drinking was found to not be dependent with Death based on chi-square, Drinking will be removed from the model.
+
+# Model Variable Selection
+
+Logistic Regression Model
+
+$log(\frac{Y}{1-Y}) = \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3 + \hat{\beta_4} x_4 + \hat{\beta_5} x_5 + \hat{\beta_6} x_6 + \hat{\beta_7} x_7$
+
+Y = Death
+
+$\beta_1$ = log odds coefficient for LowBirthWgt
+
+$\beta_2$ = log odds coefficient for Married
+
+$\beta_3$ = log odds coefficient for Drinking
+
+$\beta_4$ = log odds coefficient for Smoking
+
+$\beta_5$ = log odds coefficient for SomeCollege
+
+$\beta_6$ = log odds coefficient for AgeGroup
+
+$\beta_7$ = log odds coefficient for Race
+
+```{r}
+birthwgt_binary = birthwgt %>%
+  mutate(LowBirthWgt = ifelse(birthwgt$LowBirthWgt == "Yes", 1, 0),
+         Married = ifelse(birthwgt$Married == "Yes", 1, 0),
+         Death = ifelse(birthwgt$Death == "Yes", 1, 0),
+         Smoking = ifelse(birthwgt$Smoking == "Yes", 1, 0),
+         SomeCollege = ifelse(birthwgt$SomeCollege == "Yes", 1, 0)) %>%
+  dplyr::select(!Drinking)
+```
+
+## Model 1
+```{r}
+# Model 1
+mod1 = glm(Death ~ LowBirthWgt + Married + Smoking + SomeCollege + 
+             as.factor(AgeGroup) + as.factor(Race),
+    family = binomial(link = "logit"), 
+    data = birthwgt_binary)
+summary(mod1)
+```
+
+```{r}
+vif(mod1)
+```
+
+## Mediator
+
+```{r}
+# Mediator Step 1
+med1 = glm(Death ~ LowBirthWgt,
+    family = binomial(link = "logit"), 
+    data = birthwgt_binary)
+summary(med1)
+```
+
+
+```{r}
+# Mediator Step 2
+med2 = glm(LowBirthWgt ~ Married + Smoking + SomeCollege + as.factor(Race),
+    family = binomial(link = "logit"), 
+    data = birthwgt_binary)
+summary(med2)
+```
+
+```{r}
+# Mediator Step 3
+# without mediator
+med3 = glm(Death ~ Married + Smoking + SomeCollege + 
+             as.factor(AgeGroup) + as.factor(Race),
+    family = binomial(link = "logit"), 
+    data = birthwgt_binary)
+summary(med3)
+
+# with mediator
+med4 = glm(Death ~ LowBirthWgt + Married + Smoking + SomeCollege + 
+             as.factor(AgeGroup) + as.factor(Race),
+    family = binomial(link = "logit"), 
+    data = birthwgt_binary)
+summary(med4)
+```
+
+After removing LowBirthWgt, Smoking decreased in p-value in such a quantity that the variables changed from nonsignificant or borderline significant to significant. From this LowBirthWgt will be added to the model as a mediator to Smoking.
+
+## Model 2
+```{r}
+# Model 2
+mod2 = glm(Death ~ LowBirthWgt + Married + Smoking + SomeCollege + as.factor(AgeGroup) + 
+             as.factor(Race) + LowBirthWgt * Married * Smoking * SomeCollege * Race,
+    family = binomial(link = "logit"), 
+    data = birthwgt_binary)
+summary(mod2)
+```
+
+The interaction terms were removed because they were not significant. The model is reverted back to the first model.
+
+## Model 3/Final Model
+```{r}
+library(MASS)
+backward_model <- stepAIC(mod1, direction = "backward", trace = FALSE)
+summary(backward_model)
+```
+
+```{r}
+vif(backward_model)
+```
+
+
+```{r}
+# log odds to odds
+exp(backward_model$coefficients)
+```
+
+
+## Tukey Means
+```{r}
+library(emmeans)
+contrast(emmeans(backward_model, "Race"), "pairwise", adjust = "Tukey")
+```
+
+## Prediction Accuracy
+
+### Cross Validation Approach
+```{r}
+library(boot)
+# cross validation approach MSE 
+cv.glm(birthwgt_binary, backward_model, K = 10)$delta[1]
+```
+
+```{r}
+# weighted cross validation misclassification error rate
+cost <- function(r, pi = 0) mean(abs(r-pi) > 0.5)
+cv.glm(birthwgt_binary, backward_model, cost=cost, K = 10)$delta[1]
+```
+
+### Confusion Matrix
+```{r}
+logit.fit.prob <- predict(backward_model, type = "response")
+# Bayes rule
+logit.fit.class <- ifelse(logit.fit.prob > 0.5, 1, 0) %>% as.factor()
+confusion.matrix <- table(birthwgt_binary$Death, logit.fit.class)
+confusion.matrix
+```
+
+```{r}
+logit.fit.class <- ifelse(logit.fit.prob > 0.077, 1, 0) %>% as.factor()
+
+confusion.matrix <- table(birthwgt_binary$Death, logit.fit.class)
+confusion.matrix
+```
+
+## ROC Curve
+```{r}
+# ROC curve
+library(plotROC)
+
+logit.fit.prob <- predict(backward_model, type = "response")
+roc.df <- tibble(observed = birthwgt_binary$Death,
+                 predicted = logit.fit.prob)
+
+ggplot(data = roc.df, mapping = aes(d = observed, m = predicted)) +
+  geom_roc(labels=F) +
+  xlab("False Positive Proportion") +
+  ylab("True Positive Proportion") +
+  ggtitle("ROC Curve of Final Model Predicting Death")
+```
+
